@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FounderScore AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+    }
+  /* ─── Reset & Base ─── */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --sage:    #8fad6a;
+    --sage-lt: #b8d090;
+    --sage-dk: #5a7a40;
+    --ink:     #080c08;
+    --ink2:    #0d140d;
+    --mist:    rgba(143, 173, 106, 0.08);
+    --glow:    rgba(143, 173, 106, 0.25);
+  }
+
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--ink);
+    font-family: 'Outfit', sans-serif;
+    cursor: none;
+  }
+
+  /* ─── Custom cursor ─── */
+  .cursor {
+    position: fixed; width: 10px; height: 10px;
+    background: var(--sage); border-radius: 50%;
+    pointer-events: none; z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: transform 0.1s, width 0.2s, height 0.2s, opacity 0.2s;
+    mix-blend-mode: screen;
+  }
+  .cursor-ring {
+    position: fixed; width: 34px; height: 34px;
+    border: 1px solid rgba(143,173,106,0.5); border-radius: 50%;
+    pointer-events: none; z-index: 9998;
+    transform: translate(-50%, -50%);
+    transition: transform 0.18s ease, width 0.25s, height 0.25s;
+  }
+
+  /* ─── Canvas stars ─── */
+  #starfield {
+    position: fixed; inset: 0; z-index: 0;
+  }
+
+  /* ─── Noise overlay ─── */
+  .noise {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px;
+  }
+
+  /* ─── Vignette ─── */
+  .vignette {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(4,8,4,0.85) 100%);
+  }
+
+  /* ─── Splash screen ─── */
+  #splash {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 0;
+    transition: opacity 0.9s ease, transform 0.9s ease;
+  }
+  #splash.exit {
+    opacity: 0; transform: scale(1.04);
+    pointer-events: none;
+  }
+
+  /* Top tag */
+  .top-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    color: var(--sage-dk);
+    text-transform: uppercase;
+    margin-bottom: 2.2rem;
+    opacity: 0;
+    animation: fadeUp 0.8s ease 0.3s forwards;
+    display: flex; align-items: center; gap: 0.7rem;
+  }
+  .top-tag::before, .top-tag::after {
+    content: ''; display: block;
+    width: 30px; height: 1px; background: var(--sage-dk);
+  }
+
+  /* Main title */
+  .title-wrap {
+    text-align: center;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.55s forwards;
+  }
+  .title-main {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(4.5rem, 11vw, 9rem);
+    font-weight: 300;
+    line-height: 0.88;
+    letter-spacing: -0.01em;
+    color: var(--sage-lt);
+    text-shadow:
+      0 0 60px rgba(143,173,106,0.18),
+      0 0 120px rgba(143,173,106,0.08);
+    position: relative;
+  }
+  .title-main em {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--sage);
+  }
+  .title-ai {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.8rem, 6vw, 5.5rem);
+    font-weight: 300;
+    font-style: italic;
+    color: var(--sage);
+    letter-spacing: 0.12em;
+    text-shadow: 0 0 40px rgba(143,173,106,0.3);
+    margin-top: -0.1em;
+  }
+
+  /* Tagline */
+  .tagline {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 300;
+    font-size: clamp(0.78rem, 1.5vw, 1rem);
+    color: rgba(143,173,106,0.5);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-top: 2.2rem;
+    opacity: 0;
+    animation: fadeUp 0.9s ease 0.85s forwards;
+  }
+
+  /* Decorative line */
+  .deco-line {
+    width: 1px; height: 60px;
+    background: linear-gradient(to bottom, transparent, var(--sage-dk), transparent);
+    margin: 2.4rem 0;
+    opacity: 0;
+    animation: fadeIn 1s ease 1.1s forwards;
+  }
+
+  /* START button */
+  .start-btn {
+    position: relative;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--sage);
+    border: none;
+    border-radius: 999px;
+    padding: 1.1rem 3.2rem;
+    cursor: none;
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeUp 0.8s ease 1.3s forwards;
+    transition: transform 0.2s, box-shadow 0.3s;
+    box-shadow: 0 0 0 0 var(--glow);
+  }
+  .start-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 0.5s ease;
+  }
+  .start-btn:hover::before { transform: translateX(100%); }
+  .start-btn:hover {
+    transform: scale(1.06);
+    box-shadow: 0 0 28px var(--glow), 0 0 60px rgba(143,173,106,0.12);
+  }
+  .start-btn:active { transform: scale(0.97); }
+
+  /* Stats row */
+  .stats-row {
+    display: flex; gap: 3.5rem;
+    margin-top: 3.5rem;
+    opacity: 0;
+    animation: fadeUp 0.9s ease 1.6s forwards;
+  }
+  .stat {
+    text-align: center;
+  }
+  .stat-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.7rem;
+    font-weight: 400;
+    color: var(--sage-lt);
+    line-height: 1;
+  }
+  .stat-lbl {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.18em;
+    color: rgba(143,173,106,0.35);
+    text-transform: uppercase;
+    margin-top: 0.3rem;
+  }
+  .stat-sep {
+    width: 1px;
+    background: rgba(143,173,106,0.12);
+    align-self: stretch;
+  }
+
+  /* Corner decorations */
+  .corner {
+    position: fixed; z-index: 11;
+    width: 60px; height: 60px;
+    opacity: 0.2;
+  }
+  .corner-tl { top: 1.8rem; left: 1.8rem; border-top: 1px solid var(--sage); border-left: 1px solid var(--sage); }
+  .corner-tr { top: 1.8rem; right: 1.8rem; border-top: 1px solid var(--sage); border-right: 1px solid var(--sage); }
+  .corner-bl { bottom: 1.8rem; left: 1.8rem; border-bottom: 1px solid var(--sage); border-left: 1px solid var(--sage); }
+  .corner-br { bottom: 1.8rem; right: 1.8rem; border-bottom: 1px solid var(--sage); border-right: 1px solid var(--sage); }
+
+  /* Bottom label */
+  .bottom-label {
+    position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+    z-index: 11;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    color: rgba(143,173,106,0.2);
+    text-transform: uppercase;
+    opacity: 0;
+    animation: fadeIn 1s ease 2s forwards;
+  }
+
+  /* ─── Main App (hidden until start) ─── */
+  #app {
+    position: fixed; inset: 0; z-index: 5;
+    overflow-y: auto;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.9s ease 0.4s;
+    padding: 2.5rem 3rem;
+  }
+  #app.visible {
+    opacity: 1; pointer-events: all;
+  }
+
+  /* App header */
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 3rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(143,173,106,0.1);
+  }
+  .app-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.6rem;
+    font-weight: 400;
+    color: var(--sage-lt);
+    letter-spacing: 0.02em;
+  }
+  .app-logo span { font-style: italic; color: var(--sage); }
+  .app-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--sage-dk);
+    border: 1px solid rgba(143,173,106,0.2);
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    text-transform: uppercase;
+  }
+
+  /* Section label */
+  .lbl {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--sage-dk);
+    margin-bottom: 0.7rem;
+  }
+
+  /* Input styles */
+  textarea, input[type=number] {
+    width: 100%;
+    background: rgba(143,173,106,0.04);
+    border: 1px solid rgba(143,173,106,0.15);
+    border-radius: 10px;
+    color: var(--sage-lt);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.92rem;
+    padding: 1rem 1.2rem;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  textarea { height: 120px; }
+  textarea:focus, input[type=number]:focus {
+    border-color: rgba(143,173,106,0.4);
+    box-shadow: 0 0 0 3px rgba(143,173,106,0.06);
+  }
+  textarea::placeholder { color: rgba(143,173,106,0.2); }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 1.2rem; }
+
+  .analyze-btn {
+    margin-top: 1.5rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--sage);
+    border: none;
+    border-radius: 10px;
+    padding: 1rem 2.5rem;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+  }
+  .analyze-btn:hover {
+    background: var(--sage-lt);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(143,173,106,0.2);
+  }
+  .analyze-btn:active { transform: translateY(0); }
+
+  /* Results */
+  #results { margin-top: 3rem; display: none; }
+  #results.show { display: block; animation: fadeUp 0.6s ease; }
+
+  /* Score grid */
+  .score-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .score-card {
+    background: rgba(143,173,106,0.04);
+    border: 1px solid rgba(143,173,106,0.12);
+    border-radius: 14px;
+    padding: 1.4rem 1rem;
+    text-align: center;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .score-card:hover { border-color: rgba(143,173,106,0.3); transform: translateY(-3px); }
+  .score-card-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.8rem;
+    font-weight: 400;
+    color: var(--sage-lt);
+    line-height: 1;
+  }
+  .score-card-of { font-size: 0.8rem; color: rgba(143,173,106,0.3); }
+  .score-card-bar {
+    height: 3px; background: rgba(143,173,106,0.08); border-radius: 99px;
+    margin: 0.6rem 0;
+  }
+  .score-card-fill { height: 3px; border-radius: 99px; background: var(--sage); transition: width 1s ease; }
+  .score-card-lbl {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.55rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: rgba(143,173,106,0.35);
+    margin-top: 0.4rem;
+  }
+
+  /* Total box */
+  .total-box {
+    background: rgba(143,173,106,0.05);
+    border: 1px solid rgba(143,173,106,0.25);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  .total-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 5rem; font-weight: 300;
+    color: var(--sage-lt);
+    text-shadow: 0 0 40px rgba(143,173,106,0.3);
+    line-height: 1;
+  }
+  .total-verdict {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--sage-dk);
+    margin-top: 0.5rem;
+  }
+
+  /* Info row */
+  .info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 2rem; }
+  .info-card {
+    background: rgba(143,173,106,0.03);
+    border: 1px solid rgba(143,173,106,0.1);
+    border-radius: 12px;
+    padding: 1.3rem 1.5rem;
+  }
+  .info-card-title { font-family: 'DM Mono', monospace; font-size: 0.58rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(143,173,106,0.3); margin-bottom: 0.8rem; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.3rem 0.8rem; border-radius: 999px;
+    font-family: 'DM Mono', monospace; font-size: 0.68rem;
+    letter-spacing: 0.08em;
+  }
+  .chip-high   { background: rgba(180,60,60,0.12); border: 1px solid rgba(180,60,60,0.3); color: #e07070; }
+  .chip-medium { background: rgba(180,140,60,0.12); border: 1px solid rgba(180,140,60,0.3); color: #d4a860; }
+  .chip-low    { background: rgba(90,170,100,0.12); border: 1px solid rgba(90,170,100,0.3); color: #7ac488; }
+  .chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .chip-high .chip-dot { background: #e07070; }
+  .chip-medium .chip-dot { background: #d4a860; }
+  .chip-low .chip-dot { background: #7ac488; }
+
+  .suggest-item {
+    display: flex; gap: 1rem; align-items: flex-start;
+    padding: 0.85rem 1rem;
+    background: rgba(143,173,106,0.03);
+    border: 1px solid rgba(143,173,106,0.1);
+    border-left: 2px solid rgba(143,173,106,0.35);
+    border-radius: 0 10px 10px 0;
+    margin-bottom: 0.6rem;
+    font-size: 0.87rem;
+    color: rgba(143,173,106,0.65);
+    line-height: 1.5;
+    font-family: 'Outfit', sans-serif;
+  }
+  .suggest-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem; color: var(--sage-dk); flex-shrink: 0; margin-top: -1px;
+  }
+
+  /* Action bar */
+  .action-bar {
+    display: flex; gap: 1rem; margin-bottom: 2rem;
+    padding: 1.2rem 1.5rem;
+    background: rgba(143,173,106,0.03);
+    border: 1px solid rgba(143,173,106,0.1);
+    border-radius: 12px;
+    align-items: center;
+  }
+  .action-lbl { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(143,173,106,0.25); margin-right: 0.5rem; }
+  .action-btn {
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 0.55rem 1.2rem;
+    border-radius: 999px; border: 1px solid rgba(143,173,106,0.25);
+    background: transparent; color: var(--sage); cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .action-btn:hover {
+    background: rgba(143,173,106,0.08);
+    border-color: rgba(143,173,106,0.4);
+    transform: translateY(-1px);
+  }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; margin-bottom: 2rem; border-bottom: 1px solid rgba(143,173,106,0.1); }
+  .tab-btn {
+    font-family: 'DM Mono', monospace; font-size: 0.63rem; letter-spacing: 0.15em;
+    text-transform: uppercase; padding: 0.7rem 1.4rem;
+    border: none; background: transparent;
+    color: rgba(143,173,106,0.3); cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .tab-btn.active { color: var(--sage); border-bottom-color: var(--sage); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: fadeIn 0.35s ease; }
+
+  /* Share box */
+  .share-box {
+    background: rgba(143,173,106,0.04);
+    border: 1px dashed rgba(143,173,106,0.2);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: rgba(143,173,106,0.5);
+    word-break: break-all;
+    margin-top: 0.6rem;
+    letter-spacing: 0.02em;
+  }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 var(--glow); }
+    50%       { box-shadow: 0 0 28px 4px var(--glow); }
+  }
+  .start-btn { animation: fadeUp 0.8s ease 1.3s forwards, pulse-glow 3s ease 2.5s infinite; }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    .score-grid { grid-template-columns: repeat(2, 1fr); }
+    .stats-row { gap: 2rem; }
+    #app { padding: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Cursor -->
+<div class="cursor" id="cur"></div>
+<div class="cursor-ring" id="curR"></div>
+
+<!-- Starfield canvas -->
+<canvas id="starfield"></canvas>
+
+<!-- Noise + Vignette -->
+<div class="noise"></div>
+<div class="vignette"></div>
+
+<!-- Corner decorations -->
+<div class="corner corner-tl"></div>
+<div class="corner corner-tr"></div>
+<div class="corner corner-bl"></div>
+<div class="corner corner-br"></div>
+
+<!-- ════ SPLASH SCREEN ════ -->
+<div id="splash">
+  <div class="top-tag">due diligence engine</div>
+
+  <div class="title-wrap">
+    <div class="title-main">Founder<em>Score</em></div>
+    <div class="title-ai">AI</div>
+  </div>
+
+  <div class="tagline">AI-powered startup feasibility intelligence</div>
+
+  <div class="deco-line"></div>
+
+  <button class="start-btn" id="startBtn" onclick="enterApp()">START</button>
+
+  <div class="stats-row">
+    <div class="stat">
+      <div class="stat-num">5</div>
+      <div class="stat-lbl">Dimensions</div>
+    </div>
+    <div class="stat-sep"></div>
+    <div class="stat">
+      <div class="stat-num">100</div>
+      <div class="stat-lbl">Point Score</div>
+    </div>
+    <div class="stat-sep"></div>
+    <div class="stat">
+      <div class="stat-num">AI</div>
+      <div class="stat-lbl">Insights</div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom label -->
+<div class="bottom-label">v1.0 &nbsp;·&nbsp; hackathon edition</div>
+
+<!-- ════ MAIN APP ════ -->
+<div id="app">
+  <div class="app-header">
+    <div class="app-logo">Founder<span>Score</span> AI</div>
+    <div class="app-badge">Due Diligence Engine</div>
+  </div>
+
+  <!-- Input -->
+  <div class="lbl">Describe your startup idea</div>
+  <textarea id="ideaInput" placeholder="e.g. A SaaS platform that helps small businesses automate invoicing and cash flow forecasting using AI…"></textarea>
+
+  <div class="row2">
+    <div>
+      <div class="lbl">Capital Available (USD)</div>
+      <input type="number" id="capitalInput" value="50000" min="0" step="5000"/>
+    </div>
+    <div>
+      <div class="lbl">Monthly Burn Rate (USD)</div>
+      <input type="number" id="burnInput" value="5000" min="0" step="500"/>
+    </div>
+  </div>
+
+  <button class="analyze-btn" onclick="analyzeIdea()">⚡ &nbsp;Analyze Idea</button>
+
+  <!-- Results -->
+  <div id="results">
+
+    <!-- Action bar -->
+    <div class="action-bar">
+      <span class="action-lbl">Export</span>
+      <button class="action-btn" onclick="downloadReport()">📄 &nbsp;Download PDF</button>
+      <button class="action-btn" onclick="toggleShare()">🔗 &nbsp;Share Link</button>
+    </div>
+    <div id="shareBox" style="display:none;margin-bottom:1.5rem;">
+      <div class="lbl">Shareable Link</div>
+      <div class="share-box" id="shareUrl"></div>
+      <div style="font-size:0.72rem;color:rgba(143,173,106,0.25);margin-top:0.4rem;font-family:'DM Mono',monospace;">Replace domain with your deployed app URL</div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('overview',this)">Overview</button>
+      <button class="tab-btn" onclick="switchTab('scores',this)">Scores</button>
+      <button class="tab-btn" onclick="switchTab('risk',this)">Risk</button>
+      <button class="tab-btn" onclick="switchTab('suggestions',this)">Suggestions</button>
+      <button class="tab-btn" onclick="switchTab('dashboard',this)">Dashboard</button>
+    </div>
+
+    <!-- Overview -->
+    <div class="tab-panel active" id="tab-overview">
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;margin-bottom:2rem;">
+        <div>
+          <div class="lbl">Idea Summary</div>
+          <div style="background:rgba(143,173,106,0.04);border:1px solid rgba(143,173,106,0.12);border-radius:14px;padding:1.5rem;">
+            <div id="summaryText" style="color:rgba(143,173,106,0.7);font-size:0.9rem;line-height:1.7;margin-bottom:1.2rem;"></div>
+            <div style="display:flex;gap:2rem;flex-wrap:wrap;">
+              <div><div class="lbl">Industry</div><div id="industryVal" style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:var(--sage-lt);"></div></div>
+              <div><div class="lbl">Model</div><div id="modelVal" style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:var(--sage);"></div></div>
+              <div><div class="lbl">Runway</div><div id="runwayVal" style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:var(--sage-lt);"></div></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="lbl">Feasibility</div>
+          <div class="total-box" style="height:calc(100% - 1.5rem);">
+            <div class="total-num" id="totalScoreDisp">—</div>
+            <div style="color:rgba(143,173,106,0.3);font-size:0.75rem;font-family:'DM Mono',monospace;">/100</div>
+            <div class="total-verdict" id="totalVerdict">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scores -->
+    <div class="tab-panel" id="tab-scores">
+      <div class="score-grid" id="scoreGrid"></div>
+    </div>
+
+    <!-- Risk -->
+    <div class="tab-panel" id="tab-risk">
+      <div id="riskList" style="margin-bottom:1.5rem;"></div>
+      <div class="lbl">Financial Health</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+        <div class="score-card"><div class="score-card-num" id="capDisp">—</div><div class="score-card-lbl">Capital</div></div>
+        <div class="score-card"><div class="score-card-num" id="burnDisp">—</div><div class="score-card-lbl">Monthly Burn</div></div>
+        <div class="score-card"><div class="score-card-num" id="runDisp" style="font-size:2rem;">—</div><div class="score-card-lbl">Runway</div></div>
+      </div>
+    </div>
+
+    <!-- Suggestions -->
+    <div class="tab-panel" id="tab-suggestions">
+      <div id="suggList"></div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="tab-panel" id="tab-dashboard">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+        <div>
+          <div class="lbl">Radar — Dimension Spread</div>
+          <canvas id="radarChart" style="background:rgba(143,173,106,0.03);border:1px solid rgba(143,173,106,0.1);border-radius:14px;padding:1rem;"></canvas>
+        </div>
+        <div>
+          <div class="lbl">Bar — Score per Dimension</div>
+          <canvas id="barChart" style="background:rgba(143,173,106,0.03);border:1px solid rgba(143,173,106,0.1);border-radius:14px;padding:1rem;"></canvas>
+        </div>
+      </div>
+      <div class="lbl">At a Glance</div>
+      <div class="score-grid" id="glanceGrid"></div>
+    </div>
+
+  </div><!-- /results -->
+</div><!-- /app -->
+
+<script>
+// ═══════════════════════════════════════
+// STARFIELD
+// ═══════════════════════════════════════
+(function(){
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars = [];
+
+  function resize(){
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function init(){
+    resize();
+    stars = Array.from({length: 280}, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.1 + 0.2,
+      a: Math.random(),
+      s: (Math.random() - 0.5) * 0.08,
+      drift: (Math.random() - 0.5) * 0.015,
+    }));
+  }
+
+  function draw(){
+    ctx.clearRect(0, 0, W, H);
+    for(let s of stars){
+      s.a += s.s * 0.012;
+      if(s.a < 0) s.a = 0.8;
+      if(s.a > 1) s.a = 0.1;
+      s.x += s.drift;
+      if(s.x < 0) s.x = W;
+      if(s.x > W) s.x = 0;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(143,180,106,${s.a * 0.7})`;
+      ctx.fill();
+    }
+    // Occasional bright star twinkle
+    ctx.beginPath();
+    const bs = stars[Math.floor(Math.random()*10)];
+    ctx.arc(bs.x, bs.y, bs.r * 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(200,230,150,0.15)';
+    ctx.fill();
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  init(); draw();
+})();
+
+// ═══════════════════════════════════════
+// CUSTOM CURSOR
+// ═══════════════════════════════════════
+const cur = document.getElementById('cur');
+const curR = document.getElementById('curR');
+let mx = 0, my = 0, rx = 0, ry = 0;
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+(function moveCursor(){
+  rx += (mx - rx) * 0.14;
+  ry += (my - ry) * 0.14;
+  cur.style.left  = mx + 'px';
+  cur.style.top   = my + 'px';
+  curR.style.left = rx + 'px';
+  curR.style.top  = ry + 'px';
+  requestAnimationFrame(moveCursor);
+})();
+document.querySelectorAll('button, textarea, input').forEach(el => {
+  el.addEventListener('mouseenter', () => { cur.style.transform = 'translate(-50%,-50%) scale(2.5)'; cur.style.opacity = '0.6'; });
+  el.addEventListener('mouseleave', () => { cur.style.transform = 'translate(-50%,-50%) scale(1)';   cur.style.opacity = '1'; });
+});
+
+// ═══════════════════════════════════════
+// SPLASH → APP TRANSITION
+// ═══════════════════════════════════════
+function enterApp(){
+  document.getElementById('splash').classList.add('exit');
+  setTimeout(() => {
+    document.getElementById('splash').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+  }, 900);
+}
+
+// ═══════════════════════════════════════
+// SCORING LOGIC
+// ═══════════════════════════════════════
+const DIMS = {
+  "Market Potential":       { max:20, up:["global","billion","million","growing","large market","massive","scale"],        dn:["niche","local","small"] },
+  "Competition Density":    { max:20, up:["unique","first","no competitor","gap","underserved"],                           dn:["crowded","many players","saturated","uber","amazon","google"] },
+  "Scalability":            { max:20, up:["saas","platform","digital","software","app","api","online","cloud"],            dn:["physical","manual","offline","service-based"] },
+  "Funding Attractiveness": { max:20, up:["b2b","enterprise","recurring","subscription","revenue","roi"],                  dn:["free","non-profit","donation","volunteer"] },
+  "Risk Level":             { max:20, up:["regulated","proven","existing demand","traction","mvp"],                        dn:["unregulated","unproven","experimental","hardware","biotech"] },
+};
+
+function computeScores(idea, capital, burn){
+  const lo = idea.toLowerCase();
+  const scores = {};
+  for(const [dim, cfg] of Object.entries(DIMS)){
+    let base = 10;
+    cfg.up.forEach(k => { if(lo.includes(k)) base = Math.min(base+2, 20); });
+    cfg.dn.forEach(k => { if(lo.includes(k)) base = Math.max(base-2, 0); });
+    scores[dim] = base;
+  }
+  if(capital > 0 && burn > 0){
+    const runway = capital / burn;
+    if(runway >= 12) scores["Risk Level"] = Math.min(scores["Risk Level"]+4, 20);
+    else if(runway < 6) scores["Risk Level"] = Math.max(scores["Risk Level"]-4, 0);
+  }
+  return scores;
+}
+
+function extractInfo(idea){
+  const lo = idea.toLowerCase();
+  const industries = [
+    ["HealthTech",  ["health","medical","doctor","hospital","clinic","patient"]],
+    ["EdTech",      ["education","learn","student","school","course","teach"]],
+    ["FinTech",     ["finance","payment","bank","money","invest","loan"]],
+    ["RetailTech",  ["ecommerce","shop","retail","store","product","buy"]],
+    ["AgriTech",    ["farm","agriculture","crop","farmer"]],
+    ["CleanTech",   ["energy","solar","green","climate","carbon","sustainable"]],
+  ];
+  let industry = "Technology";
+  for(const [ind, kws] of industries){
+    if(kws.some(k => lo.includes(k))){ industry = ind; break; }
+  }
+  const model = ["enterprise","business","company","saas","b2b","corporate"].some(k => lo.includes(k)) ? "B2B" : "B2C";
+  const words  = idea.trim().split(/\s+/);
+  const summary = words.slice(0, 32).join(' ') + (words.length > 32 ? '…' : '');
+  return { industry, model, summary };
+}
+
+function getRisks(scores, capital, burn){
+  const flags = [];
+  if(scores["Competition Density"] < 8)           flags.push(["High Competition Risk",   "high"]);
+  if(capital > 0 && burn > 0 && capital/burn < 6) flags.push(["Low Runway (< 6 months)","high"]);
+  if(scores["Market Potential"] < 10)             flags.push(["Limited Market Size",     "medium"]);
+  if(scores["Scalability"] < 10)                  flags.push(["Low Scalability",         "medium"]);
+  if(scores["Funding Attractiveness"] > 14)       flags.push(["Strong Investor Fit",     "low"]);
+  if(!flags.length)                               flags.push(["No Critical Risks Detected","low"]);
+  return flags;
+}
+
+function getTips(scores, info){
+  const tips = [];
+  if(scores["Competition Density"]    < 10) tips.push("🎯 Narrow your niche — find an underserved segment to reduce direct competition.");
+  if(scores["Market Potential"]       < 12) tips.push("📈 Expand your target market — consider adjacent verticals or geographies.");
+  if(scores["Scalability"]            < 12) tips.push("💻 Add a digital/SaaS layer to improve scalability and reduce marginal costs.");
+  if(info.model === "B2C")                  tips.push("🤝 Explore a B2B pivot — enterprise customers provide higher LTV and more predictable revenue.");
+  if(scores["Funding Attractiveness"] < 12) tips.push("💰 Introduce a subscription or recurring revenue model to attract investors.");
+  if(!tips.length)                          tips.push("✅ Strong foundation! Build an MVP and validate with 10 early users immediately.");
+  return tips.slice(0,4);
+}
+
+// ═══════════════════════════════════════
+// RENDER RESULTS
+// ═══════════════════════════════════════
+let currentScores = {}, currentInfo = {}, currentTotal = 0;
+
+function analyzeIdea(){
+  const idea    = document.getElementById('ideaInput').value.trim();
+  const capital = parseFloat(document.getElementById('capitalInput').value) || 0;
+  const burn    = parseFloat(document.getElementById('burnInput').value) || 0;
+  if(!idea){ alert('Please describe your startup idea!'); return; }
+
+  const scores  = computeScores(idea, capital, burn);
+  const info    = extractInfo(idea);
+  const risks   = getRisks(scores, capital, burn);
+  const tips    = getTips(scores, info);
+  const total   = Object.values(scores).reduce((a,b)=>a+b,0);
+  const runway  = burn > 0 ? Math.floor(capital/burn) : Infinity;
+  const verdict = total >= 75 ? "Strong Opportunity" : total >= 50 ? "Moderate Potential" : "Needs Work";
+
+  currentScores = scores; currentInfo = info; currentTotal = total;
+
+  // Overview
+  document.getElementById('summaryText').textContent    = info.summary;
+  document.getElementById('industryVal').textContent    = info.industry;
+  document.getElementById('modelVal').textContent       = info.model;
+  document.getElementById('runwayVal').textContent      = runway === Infinity ? "∞" : runway + " mo";
+  document.getElementById('totalScoreDisp').textContent = total;
+  document.getElementById('totalVerdict').textContent   = verdict;
+
+  // Score cards
+  const grid = document.getElementById('scoreGrid');
+  grid.innerHTML = '';
+  for(const [dim, val] of Object.entries(scores)){
+    const pct = Math.round(val/20*100);
+    grid.innerHTML += `
+      <div class="score-card">
+        <div class="score-card-num">${val}<span class="score-card-of">/20</span></div>
+        <div class="score-card-bar"><div class="score-card-fill" style="width:0%" data-w="${pct}%"></div></div>
+        <div class="score-card-lbl">${dim}</div>
+      </div>`;
+  }
+  setTimeout(() => {
+    document.querySelectorAll('.score-card-fill').forEach(el => {
+      el.style.width = el.dataset.w;
+    });
+  }, 100);
+
+  // Risk
+  const rl = document.getElementById('riskList');
+  rl.innerHTML = risks.map(([flag, level]) => {
+    const icons = {high:'🔴', medium:'🟡', low:'🟢'};
+    return `<div style="display:flex;align-items:center;gap:0.8rem;padding:0.85rem 1.1rem;
+      background:rgba(143,173,106,0.03);border:1px solid rgba(143,173,106,0.1);
+      border-left:2px solid ${level==='high'?'#c05050':level==='medium'?'#b89040':'#50a065'};
+      border-radius:0 10px 10px 0;margin-bottom:0.6rem;">
+      <span>${icons[level]}</span>
+      <span style="font-size:0.87rem;color:rgba(143,173,106,0.65);">${flag}</span>
+    </div>`;
+  }).join('');
+
+  const fmt = n => n >= 1000 ? '$' + (n/1000).toFixed(0) + 'k' : '$' + n;
+  document.getElementById('capDisp').textContent  = fmt(capital);
+  document.getElementById('burnDisp').textContent = fmt(burn);
+  const rc = runway === Infinity ? 'var(--sage)' : runway >= 12 ? '#7ac488' : runway >= 6 ? '#d4a860' : '#e07070';
+  document.getElementById('runDisp').textContent  = runway === Infinity ? "∞" : runway + "mo";
+  document.getElementById('runDisp').style.color  = rc;
+
+  // Suggestions
+  document.getElementById('suggList').innerHTML = tips.map((t,i) =>
+    `<div class="suggest-item"><span class="suggest-num">${i+1}</span><span>${t}</span></div>`
+  ).join('');
+
+  // Dashboard charts
+  renderCharts(scores);
+
+  // Glance grid
+  const gg = document.getElementById('glanceGrid');
+  gg.innerHTML = Object.entries(scores).map(([dim, val]) =>
+    `<div class="score-card">
+      <div class="score-card-num">${val}</div>
+      <div class="score-card-lbl">${dim.split(' ')[0]}</div>
+    </div>`
+  ).join('');
+
+  // Show results
+  document.getElementById('results').classList.add('show');
+  document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ═══════════════════════════════════════
+// CHARTS (vanilla canvas)
+// ═══════════════════════════════════════
+function renderCharts(scores){
+  const dims = Object.keys(scores);
+  const vals = Object.values(scores);
+  const SAGE = '#8fad6a', SAGE_LT = '#b8d090', SAGE_DK = 'rgba(143,173,106,0.2)';
+
+  // ── Radar ──
+  const rc = document.getElementById('radarChart');
+  rc.width  = rc.offsetWidth  || 420;
+  rc.height = rc.offsetWidth  || 420;
+  const rctx = rc.getContext('2d');
+  const cx = rc.width/2, cy = rc.height/2;
+  const R  = Math.min(cx, cy) * 0.68;
+  const N  = dims.length;
+  const angle = i => (Math.PI * 2 / N) * i - Math.PI/2;
+
+  rctx.clearRect(0,0,rc.width,rc.height);
+
+  // Grid rings
+  for(let r = 1; r <= 5; r++){
+    rctx.beginPath();
+    for(let i = 0; i < N; i++){
+      const a = angle(i), rad = R * r / 5;
+      i === 0 ? rctx.moveTo(cx + Math.cos(a)*rad, cy + Math.sin(a)*rad)
+              : rctx.lineTo(cx + Math.cos(a)*rad, cy + Math.sin(a)*rad);
+    }
+    rctx.closePath();
+    rctx.strokeStyle = 'rgba(143,173,106,0.1)';
+    rctx.lineWidth = 1;
+    rctx.stroke();
+  }
+  // Spokes
+  for(let i = 0; i < N; i++){
+    const a = angle(i);
+    rctx.beginPath();
+    rctx.moveTo(cx, cy);
+    rctx.lineTo(cx + Math.cos(a)*R, cy + Math.sin(a)*R);
+    rctx.strokeStyle = 'rgba(143,173,106,0.1)';
+    rctx.lineWidth = 1;
+    rctx.stroke();
+  }
+  // Data polygon
+  rctx.beginPath();
+  for(let i = 0; i < N; i++){
+    const a = angle(i), rad = R * vals[i] / 20;
+    i === 0 ? rctx.moveTo(cx + Math.cos(a)*rad, cy + Math.sin(a)*rad)
+            : rctx.lineTo(cx + Math.cos(a)*rad, cy + Math.sin(a)*rad);
+  }
+  rctx.closePath();
+  rctx.fillStyle   = 'rgba(143,173,106,0.12)';
+  rctx.strokeStyle = SAGE;
+  rctx.lineWidth   = 2;
+  rctx.fill(); rctx.stroke();
+  // Dots + labels
+  for(let i = 0; i < N; i++){
+    const a = angle(i), rad = R * vals[i] / 20;
+    rctx.beginPath();
+    rctx.arc(cx + Math.cos(a)*rad, cy + Math.sin(a)*rad, 4, 0, Math.PI*2);
+    rctx.fillStyle = SAGE_LT; rctx.fill();
+
+    const lr = R + 28;
+    rctx.fillStyle = 'rgba(143,173,106,0.5)';
+    rctx.font = '10px DM Mono, monospace';
+    rctx.textAlign = 'center';
+    rctx.fillText(dims[i].split(' ')[0], cx + Math.cos(a)*lr, cy + Math.sin(a)*lr + 4);
+  }
+
+  // ── Bar chart ──
+  const bc = document.getElementById('barChart');
+  bc.width  = bc.offsetWidth  || 420;
+  bc.height = bc.offsetWidth  || 420;
+  const bctx = bc.getContext('2d');
+  bctx.clearRect(0,0,bc.width,bc.height);
+
+  const padL=36, padR=16, padT=20, padB=48;
+  const bW = bc.width-padL-padR, bH = bc.height-padT-padB;
+  const barW = bW / (N * 1.6);
+  const gap  = (bW - barW*N) / (N+1);
+
+  // Grid lines
+  for(let g = 0; g <= 4; g++){
+    const y = padT + bH - (bH * g / 4);
+    bctx.beginPath();
+    bctx.moveTo(padL, y); bctx.lineTo(padL+bW, y);
+    bctx.strokeStyle = 'rgba(143,173,106,0.07)';
+    bctx.lineWidth = 1; bctx.stroke();
+    bctx.fillStyle = 'rgba(143,173,106,0.25)';
+    bctx.font = '9px DM Mono, monospace';
+    bctx.textAlign = 'right';
+    bctx.fillText(g*5, padL-6, y+3);
+  }
+
+  // Bars
+  vals.forEach((val, i) => {
+    const x  = padL + gap + i * (barW + gap);
+    const bh = (val / 20) * bH;
+    const y  = padT + bH - bh;
+    const col = val >= 14 ? SAGE_LT : val >= 10 ? SAGE : val >= 7 ? '#c4a050' : '#c06060';
+
+    // Bar body
+    bctx.fillStyle = col + '28';
+    bctx.beginPath();
+    bctx.roundRect(x, padT, barW, bH, 4);
+    bctx.fill();
+
+    bctx.fillStyle = col;
+    bctx.beginPath();
+    bctx.roundRect(x, y, barW, bh, 4);
+    bctx.fill();
+
+    // Value label
+    bctx.fillStyle = SAGE_LT;
+    bctx.font = 'bold 11px DM Mono, monospace';
+    bctx.textAlign = 'center';
+    bctx.fillText(val, x + barW/2, y - 6);
+
+    // Dim label
+    bctx.fillStyle = 'rgba(143,173,106,0.35)';
+    bctx.font = '8.5px DM Mono, monospace';
+    bctx.fillText(dims[i].split(' ')[0], x + barW/2, padT + bH + 16);
+  });
+}
+
+// ═══════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════
+function switchTab(name, btn){
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if(name === 'dashboard') setTimeout(() => renderCharts(currentScores), 50);
+}
+
+// ═══════════════════════════════════════
+// SHARE LINK
+// ═══════════════════════════════════════
+function toggleShare(){
+  const box = document.getElementById('shareBox');
+  const idea = encodeURIComponent(document.getElementById('ideaInput').value.trim());
+  const cap  = document.getElementById('capitalInput').value;
+  const burn = document.getElementById('burnInput').value;
+  document.getElementById('shareUrl').textContent =
+    `https://your-app.streamlit.app/?idea=${idea}&capital=${cap}&burn=${burn}`;
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+// ═══════════════════════════════════════
+// PDF DOWNLOAD (print-to-PDF via window)
+// ═══════════════════════════════════════
+function downloadReport(){
+  const idea    = document.getElementById('ideaInput').value.trim();
+  const capital = parseFloat(document.getElementById('capitalInput').value) || 0;
+  const burn    = parseFloat(document.getElementById('burnInput').value) || 0;
+  const runway  = burn > 0 ? Math.floor(capital/burn) : '∞';
+  const total   = currentTotal;
+  const verdict = total >= 75 ? "Strong Opportunity" : total >= 50 ? "Moderate Potential" : "Needs Work";
+  const scores  = currentScores;
+  const info    = currentInfo;
+
+  const risks   = getRisks(scores, capital, burn);
+  const tips    = getTips(scores, info);
+
+  const riskRows = risks.map(([f,l]) =>
+    `<tr><td style="padding:8px 12px;color:${l==='high'?'#e07070':l==='medium'?'#d4a860':'#7ac488'};font-weight:600;">[${l.toUpperCase()}]</td><td style="padding:8px 12px;color:#ccc;">${f}</td></tr>`
+  ).join('');
+
+  const scoreRows = Object.entries(scores).map(([dim, val]) => {
+    const pct = Math.round(val/20*100);
+    const rating = pct >= 80 ? 'Excellent' : pct >= 60 ? 'Good' : pct >= 40 ? 'Fair' : 'Weak';
+    return `<tr><td style="padding:8px 12px;color:#bbb;">${dim}</td>
+      <td style="padding:8px 12px;color:#b8d090;font-weight:600;">${val}</td>
+      <td style="padding:8px 12px;color:#666;">/ 20</td>
+      <td style="padding:8px 12px;color:#8fad6a;">${rating}</td></tr>`;
+  }).join('');
+
+  const tipRows = tips.map((t, i) =>
+    `<div style="border-left:2px solid #5a7a40;padding:10px 14px;margin-bottom:8px;background:#0d140d;border-radius:0 8px 8px 0;color:#a0b880;font-size:13px;">${t}</div>`
+  ).join('');
+
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>FounderScore AI Report</title>
+  <style>
+    body{background:#080c08;color:#ccc;font-family:'Courier New',monospace;padding:40px;max-width:800px;margin:0 auto;}
+    h1{color:#b8d090;font-size:2.2rem;font-weight:300;border-bottom:1px solid #5a7a40;padding-bottom:12px;margin-bottom:6px;}
+    h2{color:#8fad6a;font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;margin:24px 0 10px;}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+    td{border:1px solid #1a2a1a;}
+    .total{text-align:center;border:1px solid #5a7a40;border-radius:12px;padding:24px;margin:16px 0;}
+    .total-num{font-size:4rem;color:#b8d090;}
+    @media print{body{background:white;color:#111;}h1,h2{color:#2a4a1a;}td{border-color:#ccc;}}
+  </style></head><body>
+  <h1>FounderScore AI</h1>
+  <p style="color:#5a7a40;font-size:0.8rem;margin-bottom:28px;">Due Diligence Report &nbsp;·&nbsp; ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</p>
+  <h2>Executive Summary</h2>
+  <p style="line-height:1.7;margin-bottom:8px;">${idea}</p>
+  <table><tr><td style="padding:8px 12px;color:#666;">Industry</td><td style="padding:8px 12px;color:#b8d090;">${info.industry||'—'}</td>
+  <td style="padding:8px 12px;color:#666;">Model</td><td style="padding:8px 12px;color:#8fad6a;">${info.model||'—'}</td></tr>
+  <tr><td style="padding:8px 12px;color:#666;">Capital</td><td style="padding:8px 12px;">$${capital.toLocaleString()}</td>
+  <td style="padding:8px 12px;color:#666;">Burn Rate</td><td style="padding:8px 12px;">$${burn.toLocaleString()}/mo</td></tr>
+  <tr><td style="padding:8px 12px;color:#666;">Runway</td><td style="padding:8px 12px;">${runway} months</td>
+  <td style="padding:8px 12px;color:#666;">Score</td><td style="padding:8px 12px;color:#b8d090;font-weight:600;">${total}/100</td></tr></table>
+  <div class="total"><div class="total-num">${total}<span style="font-size:2rem;color:#5a7a40">/100</span></div>
+  <div style="color:#5a7a40;margin-top:6px;letter-spacing:0.15em;font-size:0.75rem;text-transform:uppercase;">${verdict}</div></div>
+  <h2>Score Breakdown</h2>
+  <table><tr style="background:#0d140d;"><td style="padding:8px 12px;color:#5a7a40;">Dimension</td>
+  <td style="padding:8px 12px;color:#5a7a40;">Score</td><td style="padding:8px 12px;color:#5a7a40;">&nbsp;</td>
+  <td style="padding:8px 12px;color:#5a7a40;">Rating</td></tr>${scoreRows}</table>
+  <h2>Risk Analysis</h2>
+  <table>${riskRows}</table>
+  <h2>AI Strategy Recommendations</h2>${tipRows}
+  <p style="margin-top:32px;color:#2a3a2a;font-size:0.7rem;border-top:1px solid #1a2a1a;padding-top:12px;">Generated by FounderScore AI &nbsp;·&nbsp; Confidential</p>
+  <script>window.print();<\/script></body></html>`);
+  w.document.close();
+}
+</script>
+</body>
+</html>
