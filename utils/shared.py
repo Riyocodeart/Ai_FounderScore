@@ -12,18 +12,17 @@ def _bg(root):
     return "background:radial-gradient(ellipse at 20% 20%,#1e0040 0%,#0a0015 50%,#000000 100%);"
 
 def inject_css(root, scroll=False):
-    ov = "auto" if scroll else "hidden"
     st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0;}}
-html,body,.stApp,[class*="css"]{{font-family:'Syne',sans-serif!important;color:#fff!important;overflow:{ov}!important;}}
-.stApp{{{_bg(root)}min-height:100vh;}}
+html,body,.stApp,[class*="css"]{{font-family:'Syne',sans-serif!important;color:#fff!important;}}
+.stApp{{{_bg(root)}min-height:100vh;overflow-y:auto!important;}}
 .stApp::before{{content:'';position:fixed;inset:0;background:rgba(0,0,0,0.83);z-index:0;pointer-events:none;}}
 section[data-testid="stSidebar"]{{display:none!important;}}
 header[data-testid="stHeader"]{{display:none!important;}}
 footer{{display:none!important;}}
-.block-container{{padding:0!important;max-width:100%!important;overflow:{ov}!important;position:relative;z-index:1;}}
+.block-container{{padding:0!important;max-width:100%!important;overflow:visible!important;position:relative;z-index:1;}}
 div[data-testid="stVerticalBlock"]>div{{gap:0!important;}}
 .element-container{{margin:0!important;padding:0!important;}}
 [data-testid="column"]{{padding:0 5px!important;}}

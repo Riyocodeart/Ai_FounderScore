@@ -1,9 +1,10 @@
 import streamlit as st
 import sys, os, base64
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from utils.nlp_engine import extract_startup_info
 from utils.scoring import calculate_scores, generate_risk_analysis, simulate_survival, get_competitor_insights
+from utils.shared import navbar
 
 st.set_page_config(
     page_title="VentureLens AI",
@@ -11,6 +12,8 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed",
 )
+
+navbar("home", "")
 
 # ── Load background (jpeg if available, else pure black) ──────────
 BG_PATH = os.path.join(os.path.dirname(__file__), "assets", "bg.jpeg")

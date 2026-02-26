@@ -1,8 +1,14 @@
 import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from utils.shared import inject_css, navbar
+
+@st.cache_data
+def load_benchmark():
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "venturelens_benchmark.csv")
+    return pd.read_csv(path)
 
 st.set_page_config(page_title="VentureLens · Dashboard", page_icon="📊",
                    layout="wide", initial_sidebar_state="collapsed")
@@ -65,8 +71,7 @@ def yax(title="", sz=16, suf=""):
 
 def esc(s): return str(s).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
 
-CARD_H = 168
-ROW2_H = "calc(100vh - 56px - 176px - 16px)"
+CARD_H = 180
 
 # ═══════════════════════════════════════════════════════════════
 # LAYOUT
@@ -107,21 +112,43 @@ with col_left:
 # ══ RIGHT — charts area ═══════════════════════════════════════
 with col_right:
 
-    # ── Row 1: 4 score cards + survival chart ─────────────────
-    sc1,sc2,sc3,sc4,sc5 = st.columns([1,1,1,1,1.6], gap="small")
-    scorecols = [sc1,sc2,sc3,sc4]
+    # ── Row 1a: first 4 score cards ───────────────────────────
+    score_items = list(scores.items())
+    SCOLS8 = ["#c084fc","#a855f7","#7c3aed","#9333ea","#e879f9","#818cf8","#6d28d9","#7c3aed"]
 
-    for i,(lbl,val) in enumerate(scores.items()):
-        fill = int((val/40)*100)
-        c    = SCOLS[i]
-        with scorecols[i]:
-            # ✅ complete self-contained div in ONE call
+    sc1,sc2,sc3,sc4 = st.columns([1,1,1,1], gap="small")
+    for i, (lbl,val) in enumerate(score_items[:4]):
+        fill = int((val/20)*100)
+        c    = SCOLS8[i]
+        with [sc1,sc2,sc3,sc4][i]:
             st.markdown(
                 f'<div class="gc" style="height:{CARD_H}px;">'
                 f'  <span class="lbl" style="font-size:11px;">{lbl.replace(" ","<br>")}</span>'
                 f'  <div class="snum" style="color:{c};margin:auto 0 6px;'
                 f'    text-shadow:0 0 22px {c}BB,0 0 55px {c}55;">'
-                f'    {val}<span class="sout">/40</span>'
+                f'    {val}<span class="sout">/20</span>'
+                f'  </div>'
+                f'  <div class="sbar-bg">'
+                f'    <div class="sbar-fill" style="width:{fill}%;background:{c};box-shadow:0 0 12px {c}AA;"></div>'
+                f'  </div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
+    st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+
+    # ── Row 1b: next 4 score cards + survival chart ────────────
+    sc5,sc6,sc7,sc8,sc9 = st.columns([1,1,1,1,1.6], gap="small")
+    for i, (lbl,val) in enumerate(score_items[4:]):
+        fill = int((val/20)*100)
+        c    = SCOLS8[i+4]
+        with [sc5,sc6,sc7,sc8][i]:
+            st.markdown(
+                f'<div class="gc" style="height:{CARD_H}px;">'
+                f'  <span class="lbl" style="font-size:11px;">{lbl.replace(" ","<br>")}</span>'
+                f'  <div class="snum" style="color:{c};margin:auto 0 6px;'
+                f'    text-shadow:0 0 22px {c}BB,0 0 55px {c}55;">'
+                f'    {val}<span class="sout">/20</span>'
                 f'  </div>'
                 f'  <div class="sbar-bg">'
                 f'    <div class="sbar-fill" style="width:{fill}%;background:{c};box-shadow:0 0 12px {c}AA;"></div>'
@@ -131,7 +158,7 @@ with col_right:
             )
 
     # ── Survival chart ─────────────────────────────────────────
-    with sc5:
+    with sc9:
         fig_surv = go.Figure()
         fig_surv.add_trace(go.Scatter(
             x=years_, y=surv_pct,
@@ -141,7 +168,7 @@ with col_right:
             marker=dict(size=11,color="#a855f7",line=dict(color="rgba(255,255,255,0.55)",width=2)),
             hovertemplate="<b>%{x}</b>  %{y}%<extra></extra>",
         ))
-        fig_surv.update_layout(**dl(CARD_H-55,
+        fig_surv.update_layout(**dl(CARD_H-20,
             xaxis=dict(**xax("Year",15,grid=False)),
             yaxis=dict(**yax("Survival %",15,"%"), range=[0,100]),
             hovermode="x unified",
@@ -161,6 +188,94 @@ with col_right:
 
     st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
 
+    # ── Benchmark Row ──────────────────────────────────────────
+    bench_df       = load_benchmark()
+    industry       = ext.get("industry", "")
+    industry_bench = bench_df[bench_df["Industry"] == industry]
+    if industry_bench.empty:
+        industry_bench = bench_df
+
+    bench_n         = len(industry_bench)
+    bench_avg_total = round(industry_bench["Total Feasibility Score"].mean(), 1)
+    percentile      = round((industry_bench["Total Feasibility Score"] < total).mean() * 100, 1)
+    delta_total     = round(total - bench_avg_total, 1)
+    delta_sign      = "+" if delta_total >= 0 else ""
+    delta_c         = "#a855f7" if delta_total >= 0 else "#ef4444"
+
+    SCORE_COLS  = ["Market Potential","Competition Density","Scalability",
+                   "Funding Attractiveness","Risk Level","Innovation Score",
+                   "Market Saturation","Execution Complexity"]
+    REVERSE     = {"Competition Density","Risk Level","Market Saturation","Execution Complexity"}
+
+    user_vals   = [scores.get(m, 0) for m in SCORE_COLS]
+    bench_vals  = [round(industry_bench[m].mean(), 1) for m in SCORE_COLS]
+    labels_loop = SCORE_COLS + [SCORE_COLS[0]]
+
+    fig_radar = go.Figure()
+    fig_radar.add_trace(go.Scatterpolar(
+        r=user_vals + [user_vals[0]], theta=labels_loop,
+        fill="toself", name="Your Idea",
+        line=dict(color="#a855f7", width=2.5),
+        fillcolor="rgba(168,85,247,0.18)",
+        hovertemplate="<b>%{theta}</b>: %{r}<extra></extra>",
+    ))
+    fig_radar.add_trace(go.Scatterpolar(
+        r=bench_vals + [bench_vals[0]], theta=labels_loop,
+        fill="toself", name=f"{industry} Avg",
+        line=dict(color="#c084fc", width=2, dash="dash"),
+        fillcolor="rgba(192,132,252,0.07)",
+        hovertemplate="<b>%{theta}</b>: %{r}<extra></extra>",
+    ))
+    fig_radar.update_layout(
+        paper_bgcolor=T, plot_bgcolor=T,
+        margin=dict(t=20, b=20, l=20, r=20), height=260,
+        font=dict(family="Syne", color="#ffffff", size=13),
+        showlegend=True,
+        legend=dict(orientation="h", y=-0.08, x=0.5, xanchor="center",
+                    font=dict(size=13, color="rgba(255,255,255,0.7)")),
+        polar=dict(
+            bgcolor="rgba(0,0,0,0)",
+            radialaxis=dict(visible=True, range=[0, 20],
+                            tickfont=dict(size=11, color="rgba(255,255,255,0.35)"),
+                            gridcolor="rgba(255,255,255,0.08)"),
+            angularaxis=dict(tickfont=dict(size=12, color="rgba(255,255,255,0.6)"),
+                             gridcolor="rgba(255,255,255,0.08)"),
+        ),
+    )
+
+    # stat pills html
+    stat_pills = (
+        f'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">'
+        f'  <div style="background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.35);'
+        f'    border-radius:100px;padding:5px 16px;font-size:13px;color:#c4b5fd;">'
+        f'    vs {bench_n} startups in <b>{esc(industry)}</b>'
+        f'  </div>'
+        f'  <div style="background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.35);'
+        f'    border-radius:100px;padding:5px 16px;font-size:13px;color:#c4b5fd;">'
+        f'    Industry avg: <b>{bench_avg_total}</b>'
+        f'  </div>'
+        f'  <div style="background:rgba(168,85,247,0.12);border:1px solid {delta_c}55;'
+        f'    border-radius:100px;padding:5px 16px;font-size:13px;color:{delta_c};">'
+        f'    {delta_sign}{delta_total} vs avg'
+        f'  </div>'
+        f'  <div style="background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.35);'
+        f'    border-radius:100px;padding:5px 16px;font-size:13px;color:#c4b5fd;">'
+        f'    {percentile}th percentile'
+        f'  </div>'
+        f'</div>'
+    )
+
+    st.markdown(
+        f'<div class="gc">'
+        f'  <span class="lbl">📊 Benchmark vs {esc(industry)} Industry</span>'
+        f'  {stat_pills}',
+        unsafe_allow_html=True
+    )
+    st.plotly_chart(fig_radar, use_container_width=True, config={"displayModeBar": False})
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+
     # ── Row 2: Gauge | Bar | Risk | Competitors ────────────────
     r2a,r2b,r2c,r2d = st.columns([1,1.2,1.4,1.2], gap="small")
 
@@ -169,11 +284,11 @@ with col_right:
         fig_gauge = go.Figure(go.Indicator(
             mode="gauge+number", value=total,
             title=dict(text="Feasibility Score",
-                       font=dict(size=20,color="rgba(255,255,255,0.78)",family="Syne")),
-            number=dict(font=dict(size=40,color="#fff",family="Syne"), suffix=f"/{160}"),
+                       font=dict(size=18,color="rgba(255,255,255,0.78)",family="Syne")),
+            number=dict(font=dict(size=36,color="#fff",family="Syne"), suffix=f"/{160}"),
             gauge=dict(
                 axis=dict(range=[0,160],nticks=5,
-                          tickfont=dict(color="rgba(255,255,255,0.52)",size=13),
+                          tickfont=dict(color="rgba(255,255,255,0.52)",size=12),
                           tickwidth=1,tickcolor="rgba(255,255,255,0.28)"),
                 bar=dict(color=gc,thickness=0.30),
                 bgcolor=T, borderwidth=0,
@@ -183,17 +298,16 @@ with col_right:
                 threshold=dict(line=dict(color=gc,width=4),thickness=0.85,value=total),
             ),
         ))
-        fig_gauge.update_layout(**dl(250))
+        fig_gauge.update_layout(**dl(300))
 
-        st.markdown(f'<div class="gc" style="height:{ROW2_H};">'
-                    f'<span class="lbl">📊 Feasibility Gauge</span>',
+        st.markdown('<div class="gc"><span class="lbl">📊 Feasibility Gauge</span>',
                     unsafe_allow_html=True)
         st.plotly_chart(fig_gauge, use_container_width=True, config={"displayModeBar":False})
         st.markdown(
-            '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;">'
-            '  <span style="font-size:15px;color:rgba(239,68,68,0.92);">🔴 0–64 Weak</span>'
-            '  <span style="font-size:15px;color:rgba(168,85,247,0.92);">🟣 64–112 Fair</span>'
-            '  <span style="font-size:15px;color:rgba(16,185,129,0.92);">🟢 112+ Strong</span>'
+            '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;padding-bottom:8px;">'
+            '  <span style="font-size:13px;color:rgba(239,68,68,0.92);">🔴 0–64 Weak</span>'
+            '  <span style="font-size:13px;color:rgba(168,85,247,0.92);">🟣 64–112 Fair</span>'
+            '  <span style="font-size:13px;color:rgba(16,185,129,0.92);">🟢 112+ Strong</span>'
             '</div></div>',
             unsafe_allow_html=True
         )
@@ -203,19 +317,21 @@ with col_right:
         fig_bar = go.Figure(go.Bar(
             x=list(scores.keys()),
             y=list(scores.values()),
-            marker=dict(color=SCOLS[:len(scores)],
+            marker=dict(color=SCOLS8[:len(scores)],
                         line=dict(color="rgba(255,255,255,0.07)",width=1)),
-            text=[f"{v}/40" for v in scores.values()],
+            text=[str(v) for v in scores.values()],
             textposition="outside",
-            textfont=dict(color="#ffffff",size=20,family="Syne"),
-            width=0.55,
+            textfont=dict(color="#ffffff",size=13,family="Syne"),
+            width=0.6,
         ))
-        fig_bar.update_layout(**dl(290,
-            xaxis=dict(**xax("Dimension",16,grid=False), tickangle=0),
-            yaxis=dict(**yax("Points",16), range=[0,52]),
+        fig_bar.update_layout(**dl(300,
+            xaxis=dict(tickangle=-45,
+                       tickfont=dict(color="rgba(255,255,255,0.6)",size=10,family="JetBrains Mono"),
+                       gridcolor=T, zeroline=False, showline=False),
+            yaxis=dict(**yax("",12), range=[0,26]),
+            margin=dict(t=10,b=90,l=10,r=10),
         ))
-        st.markdown(f'<div class="gc" style="height:{ROW2_H};">'
-                    f'<span class="lbl">📊 Score Breakdown</span>',
+        st.markdown('<div class="gc"><span class="lbl">📊 Score Breakdown</span>',
                     unsafe_allow_html=True)
         st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
@@ -234,12 +350,9 @@ with col_right:
                 f'  </div>'
                 f'</div>'
             )
-        # ✅ entire risk card as ONE call
         st.markdown(
-            f'<div class="gc" style="height:{ROW2_H};">'
-            f'<span class="lbl">⚠️ Risk Intelligence</span>'
-            f'{risk_html}'
-            f'</div>',
+            f'<div class="gc"><span class="lbl">⚠️ Risk Intelligence</span>'
+            f'{risk_html}</div>',
             unsafe_allow_html=True
         )
 
@@ -262,21 +375,21 @@ with col_right:
             labels=comp_list, values=pie_vals, hole=0.52,
             marker=dict(colors=ACOLS[:len(comp_list)],
                         line=dict(color="rgba(0,0,0,0.45)",width=2)),
-            textfont=dict(size=15,color="#fff",family="Syne"),
+            textfont=dict(size=13,color="#fff",family="Syne"),
             textposition="outside", textinfo="label",
             hovertemplate="<b>%{label}</b>  %{percent}<extra></extra>",
         ))
-        fig_pie.update_layout(**dl(165,
+        fig_pie.update_layout(**dl(220,
+            margin=dict(t=30,b=30,l=30,r=30),
             annotations=[dict(text=f"<b>{len(comp_list)}</b><br>rivals",
                               x=0.5,y=0.5,showarrow=False,
-                              font=dict(size=20,color="#fff",family="Syne"))],
+                              font=dict(size=18,color="#fff",family="Syne"))],
         ))
 
         st.markdown(
-            f'<div class="gc" style="height:{ROW2_H};">'
-            f'<span class="lbl">🏢 Competitors</span>'
+            f'<div class="gc"><span class="lbl">🏢 Competitors</span>'
             f'{comp_rows}'
-            f'<span class="lbl" style="margin-top:6px;">Market Share</span>',
+            f'<span class="lbl" style="margin-top:10px;">Market Share</span>',
             unsafe_allow_html=True
         )
         st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar":False})
@@ -284,13 +397,13 @@ with col_right:
             f'<div class="chips">'
             f'  <div class="chip">'
             f'    <div class="chip-lbl">Crowdedness</div>'
-            f'    <div class="chip-val" style="color:{crowd_c};font-size:20px;'
+            f'    <div class="chip-val" style="color:{crowd_c};font-size:18px;'
             f'      text-shadow:0 0 14px {crowd_c}BB;">{esc(crowd)}</div>'
             f'  </div>'
             f'  <div class="chip">'
             f'    <div class="chip-lbl">Pressure Score</div>'
             f'    <div class="chip-val">{press}'
-            f'      <span style="font-size:16px;color:rgba(255,255,255,0.38);">/100</span>'
+            f'      <span style="font-size:14px;color:rgba(255,255,255,0.38);">/100</span>'
             f'    </div>'
             f'  </div>'
             f'</div></div>',
