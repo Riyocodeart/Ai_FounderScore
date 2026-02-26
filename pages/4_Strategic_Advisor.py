@@ -8,13 +8,24 @@ st.set_page_config(page_title="Strategic Advisor", layout="wide")
 
 st.title("🧠 VentureLens AI — Strategic Advisor")
 
-if "extracted" not in st.session_state or "scores" not in st.session_state:
+import os
+import pickle
+
+if not os.path.exists("temp_analysis.pkl"):
     st.warning("⚠ Please analyze a startup idea first on the main page.")
     st.stop()
 
-extracted = st.session_state["extracted"]
-scores    = st.session_state["scores"]
-total     = st.session_state.get("total", 0)
+with open("temp_analysis.pkl", "rb") as f:
+    data = pickle.load(f)
+
+idea      = data["idea"]
+extracted = data["extracted"]
+scores    = data["scores"]
+total     = data["total"]
+risks     = data["risks"]
+comps     = data["comps"]
+surv      = data["surv"]
+
 
 strategic_data = generate_strategic_recommendations(extracted, scores)
 

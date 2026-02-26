@@ -295,7 +295,7 @@ def navbar(active="home", idea=""):
     <div class="tn-links">
         {lnk("home",    "Analyze",   "/")}
         {lnk("dashboard","Dashboard","/Dashboard")}
-        {lnk("about",   "About",     "/About")}
+        {lnk("Strategic Advisor",   "Strategic Advisor",     "/Strategic_Advisor")}
     </div>
     <div class="tn-right">
         {idea_html}

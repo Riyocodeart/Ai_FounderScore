@@ -13,7 +13,6 @@ st.set_page_config(
 )
 
 
-
 # ── Load background (jpeg if available, else gradient) ──────────
 BG_PATH = os.path.join(os.path.dirname(__file__), "assets", "bg.jpeg    ")
 
@@ -365,7 +364,7 @@ small[data-testid="InputInstructions"],
     <a class="vl-navbar-brand" href="/">Venture<em>Lens</em> AI</a>
     <div class="vl-navbar-links">
         <a class="vl-navbar-link" href="/Dashboard">Dashboard</a>
-        <a class="vl-navbar-link" href="/About">About</a>
+        <a class="vl-navbar-link" href="/Strategic_Advisor">Strategic Advisor</a>
         <a class="vl-navbar-cta" href="/">Get Started</a>
     </div>
 </nav>
@@ -446,4 +445,17 @@ if clicked:
             "idea": idea, "extracted": ext, "scores": scores,
             "total": total, "risks": risks, "comps": comps, "surv": surv,
         })
+
+        import pickle
+        with open("temp_analysis.pkl", "wb") as f:
+            pickle.dump({
+                "idea": idea,
+                "extracted": ext,
+                "scores": scores,
+                "total": total,
+                "risks": risks,
+                "comps": comps,
+                "surv": surv
+            }, f)
+
         st.switch_page("pages/1_Dashboard.py")
